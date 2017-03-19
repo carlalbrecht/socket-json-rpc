@@ -81,7 +81,9 @@
   [call params id method]
   `(if (nil? ~params)
      (assoc ((second ~method) nil (not (contains? ~call "id"))) "id" ~id)
-     (if (= (count (first ~method)) (count ~params))
+     (if (or (= (count (first ~method)) (count ~params))
+             (and (= (last (first ~method)) "...")
+                  (<= (count (first ~method)) (count ~params))))
        (assoc ((second ~method) ~params (not (contains? ~call "id"))) "id" ~id)
        (assoc (#'server-error (var-get #'invalid-params)) "id" ~id))))
 
@@ -101,15 +103,19 @@
   is a notification."
   [input]
   `(if (empty? ~input)
-     (assoc (#'server-error (var-get #'invalid-request)) "id" nil)
+     (json/write-str (assoc (#'server-error (var-get #'invalid-request)) "id" nil))
      (loop [input# ~input return# []]
        (if-let [current# (first input#)]
          (recur (rest input#)
                 (let [result# (#'execute-single current#)]
-           (if (or (contains? current# "id") (= (get (get result# "error") "code") -32600))
-             (conj return# (#'execute-single current#))
-             return#)))
-       (json/write-str (vec (remove nil? return#)))))))
+           (if-not (map? current#)
+             (conj return# (assoc (#'server-error (var-get #'invalid-request)) "id" nil))
+             (if (or (contains? current# "id") (= (get (get result# "error") "code") -32600))
+               (conj return# (#'execute-single current#))
+               return#))))
+       (if-not (empty? (remove nil? return#))
+         (json/write-str (vec (remove nil? return#)))
+         "")))))
 
 (defmacro do-single
   "Very simply executes a single procedure call. Enforces not returning anything

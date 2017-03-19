@@ -38,6 +38,19 @@ boolean value that is true when the client does not want to receive a reply with
 the result of the procedure call. If the procedure does not respect the
 `notification` variable, the server will still not send the result anyway.
 
+*Note:* Normally, the number of unnamed arguments supplied must match the number
+of named arguments supplied in the procedure definition, but to allow for
+variable arguments, the special named argument `"..."` can be used. For example:
+
+```clojure
+(server/defprocedure add
+  ["a" "..."]
+  (server/respond (reduce + args)))
+```
+
+The client must still provide at least the number of named arguments other than
+`"..."`. In the previous example, at least one number would have to be specified.
+
 This method can be called with either of the following JSON:
 
 ```javascript
