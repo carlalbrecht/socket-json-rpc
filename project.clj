@@ -6,4 +6,5 @@
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/data.json "0.2.6"]
                  [org.clojure/core.async "0.3.441"]
-                 [com.hellonico.gearswithingears/async-sockets "0.1.0"]])
+                 [com.hellonico.gearswithingears/async-sockets "0.1.0"]]
+  :plugins [[lein-cloverage "1.0.7-SNAPSHOT"]])
