@@ -52,13 +52,14 @@
   `(let [params# (get ~call "params")
          id# (get ~call "id")]
      (if (= (get ~call "jsonrpc") "2.0")
-       (if-let [method# (get #'jrpc-namespace (get ~call "method"))]
+       (if-let [method# (get (var-get #'jrpc-namespace) (get ~call "method"))]
          (if (or (vector? params#) (map? params#) (= params# nil))
            ((fn [~'params ~'id ~'method] ~body) params# id# method#)
-           (assoc (#'server-error #'invalid-request) "id" id#))
-         (assoc (#'server-error #'method-not-found) "id" id#))
-       (assoc (#'server-error #'invalid-request) "id" id#))))
+           (assoc (#'server-error (var-get #'invalid-request)) "id" id#))
+         (assoc (#'server-error (var-get #'method-not-found)) "id" id#))
+       (assoc (#'server-error (var-get #'invalid-request)) "id" id#))))
 
+; FIXME notification argument currently hardcoded to false
 (defn- execute-single
   "Takes the JSON input of a single procedure call, and returns a map containing
   the return JSON, if applicable (i.e. notifications do not return anything).
@@ -75,10 +76,10 @@
                         (catch Exception _
                           (assoc (server-error invalid-params) "id" id)))
                    (rest params))
-            ((second method) args))))
+            (assoc ((second method) args false) "id" id))))
       (if (= (count (first method)) (count params))
-        ((second method) params)
-        (assoc (error invalid-params) "id" id)))))
+        (assoc ((second method) params false) "id" id)
+        (assoc (server-error invalid-params) "id" id)))))
 
 (defn- execute
   "Handles request strings, dealing with batches etc. along the way."
@@ -87,7 +88,7 @@
     (def wasd input) ; XXX Debug
     (if (vector? input)
       (if (empty? input)
-        (assoc (error invalid-request) "id" nil)
+        (assoc (server-error invalid-request) "id" nil)
         (loop [input input return []]
           (if-let [current (first input)]
             (recur (rest input)
@@ -95,14 +96,24 @@
             (json/write-str (vec (remove nil? return))))))
       (json/write-str (execute-single input)))))
 
+; From http://stackoverflow.com/a/12503724
+(defn- parse-int
+  "Parses the first continuous number only"
+  [s]
+  (new Integer (re-find #"\d+" s)))
+
 (defn- socket-io
   "Reads all incoming data from the socket, then sends the completed string to
   execute, before writing the return data to the socket."
-  [connection]
-  (async/go-loop [request ""]
-    (if-let [line (async/<! (:in connection))]
-      (recur (str request "\n" line))
-      (async/>! (:out connection) (execute request)))))
+  [socket]
+  (async/go-loop [length 0 request ""]
+    (when-let [line (async/<! (:in socket))]
+      (if (zero? length)
+        (recur (parse-int line) request)
+        (let [request (str request line)]
+          (if (< (count request) length)
+            (recur length (str request "\n"))
+            (async/>! (:out socket) (execute request))))))))
 
 (defmacro defprocedure
   "Creates a new procedure that can be called through the JSON-RPC interface.
