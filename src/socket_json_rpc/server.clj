@@ -69,10 +69,10 @@
     (if (map? params)
       (loop [args (into [] (map (constantly nil) (first method)))
              params params]
-        (if (vector? args)
-          args ; Don't argue - this returns an invalid params error
+        (if-not (vector? args)
+          args
           (if-let [arg (first params)]
-            (recur (try (assoc args (.indexOf (first params)) (second params))
+            (recur (try (assoc args (.indexOf (first method) (first arg)) (second arg))
                         (catch Exception _
                           (assoc (server-error invalid-params) "id" id)))
                    (rest params))
@@ -85,7 +85,6 @@
   "Handles request strings, dealing with batches etc. along the way."
   [request]
   (let [input (json/read-str request)]
-    (def wasd input) ; XXX Debug
     (if (vector? input)
       (if (empty? input)
         (assoc (server-error invalid-request) "id" nil)
@@ -113,7 +112,8 @@
         (let [request (str request line)]
           (if (< (count request) length)
             (recur length (str request "\n"))
-            (async/>! (:out socket) (execute request))))))))
+            (let [result (execute request)]
+              (async/>! (:out socket) (str (count result) "\n" result)))))))))
 
 (defmacro defprocedure
   "Creates a new procedure that can be called through the JSON-RPC interface.
