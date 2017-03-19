@@ -1,5 +1,7 @@
 # socket-json-rpc
 
+[![codecov](https://codecov.io/gh/invlpg/socket-json-rpc/branch/master/graph/badge.svg)](https://codecov.io/gh/invlpg/socket-json-rpc)
+
 socket-json-rpc is a Clojure library that simplifies creating async JSON-RPC
 servers and clients that communicate using TCP sockets.
 
