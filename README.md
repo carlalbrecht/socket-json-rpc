@@ -97,6 +97,15 @@ The only required argument to either form is `port`. `backlog` specifies how man
 pending connections should be buffered, and is 50 by default. `bind-addr`
 specifies the host address that the server should listen on.
 
+## Common Problems
+
+```clojure
+ClassCastException java.lang.String cannot be cast to clojure.lang.Associative
+```
+
+This usually means that you forgot to add `(respond [val])` around your procedure's
+return value.
+
 ## License
 
 Copyright © 2017 Carl Albrecht
