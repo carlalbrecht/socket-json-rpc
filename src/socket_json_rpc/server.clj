@@ -76,9 +76,9 @@
                         (catch Exception _
                           (assoc (server-error invalid-params) "id" id)))
                    (rest params))
-            (assoc ((second method) args false) "id" id))))
+            (assoc ((second method) args (not (contains? call "id"))) "id" id))))
       (if (= (count (first method)) (count params))
-        (assoc ((second method) params false) "id" id)
+        (assoc ((second method) params (not (contains? call "id"))) "id" id)
         (assoc (server-error invalid-params) "id" id)))))
 
 (defn- execute
