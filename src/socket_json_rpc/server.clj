@@ -52,11 +52,13 @@
   `(let [params# (get ~call "params")
          id# (get ~call "id")]
      (if (= (get ~call "jsonrpc") "2.0")
-       (if-let [method# (get (var-get #'jrpc-namespace) (get ~call "method"))]
-         (if (or (vector? params#) (map? params#) (= params# nil))
-           ((fn [~'params ~'id ~'method] ~body) params# id# method#)
-           (assoc (#'server-error (var-get #'invalid-request)) "id" id#))
-         (assoc (#'server-error (var-get #'method-not-found)) "id" id#))
+       (if (string? method)
+         (if-let [method# (get (var-get #'jrpc-namespace) (get ~call "method"))]
+           (if (or (vector? params#) (map? params#) (= params# nil))
+             ((fn [~'params ~'id ~'method] ~body) params# id# method#)
+             (assoc (#'server-error (var-get #'invalid-request)) "id" id#))
+           (assoc (#'server-error (var-get #'method-not-found)) "id" id#))
+         (assoc (#'server-error (var-get #'invalid-request)) "id" id#))
        (assoc (#'server-error (var-get #'invalid-request)) "id" id#))))
 
 ; FIXME notification argument currently hardcoded to false
@@ -84,7 +86,9 @@
 (defn- execute
   "Handles request strings, dealing with batches etc. along the way."
   [request]
-  (let [input (json/read-str request)]
+  (let [input (try (json/read-str request)
+                   (catch Exception _
+                     (assoc (server-error parse-error) "id" nil)))]
     (if (vector? input)
       (if (empty? input)
         (assoc (server-error invalid-request) "id" nil)
@@ -93,7 +97,9 @@
             (recur (rest input)
                    (conj return (execute-single current)))
             (json/write-str (vec (remove nil? return))))))
-      (json/write-str (execute-single input)))))
+      (if (contains? input "error")
+        input
+        (json/write-str (execute-single input))))))
 
 ; From http://stackoverflow.com/a/12503724
 (defn- parse-int
