@@ -7,12 +7,18 @@ servers and clients that communicate using TCP sockets.
 production code under any circumstances. I will laugh at you if you get fired
 because you used under-developed software and it failed.
 
-## Simple Usage
+## Server Usage
+
+First, require the server:
+
+```clojure
+(require '[socket-json-rpc.server :as server])
+```
 
 Procedures are defined with `defprocedure`, and is used in the form
 
 ```clojure
-(defprocedure [name] [[named-args]] [body])
+(server/defprocedure [name] [[named-args]] [body])
 ```
 
 The named-args argument tells the server how to arrange named arguments into a
@@ -20,7 +26,7 @@ vector so that the body can use the arguments in a consistent manner. For
 example, the following procedure allows both unnamed and named argument usage.
 
 ```clojure
-(defprocedure subtract
+(server/defprocedure subtract
   ["minuend" "subtrahend"]
   (respond (- (first args) (second args))))
 ```
@@ -66,6 +72,30 @@ And both would return the same result:
   "id": 1
 }
 ```
+
+The server can then be started in one of two ways:
+
+```clojure
+; This version blocks the calling thread, so it won't close.
+(defn -main
+  [& args]
+  ...
+  (server/start [port] [backlog] [bind-addr]))
+```
+
+```clojure
+; This version allows the calling thread to continue immediately, meaning that
+; if the main thread closes, the server will also be shut down.
+(defn -main
+  [& args]
+  ...
+  (server/start-async [port] [backlog] [bind-addr])
+  ...)
+```
+
+The only required argument to either form is `port`. `backlog` specifies how many
+pending connections should be buffered, and is 50 by default. `bind-addr`
+specifies the host address that the server should listen on.
 
 ## License
 
