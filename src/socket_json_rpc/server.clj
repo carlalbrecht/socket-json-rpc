@@ -61,6 +61,30 @@
          (assoc (#'server-error (var-get #'invalid-request)) "id" id#))
        (assoc (#'server-error (var-get #'invalid-request)) "id" id#))))
 
+(defmacro named-params
+  "Organises named parameters into a vector as if it were a positional parameter
+  call, then calls the procedure as per normal."
+  [call params id method]
+  `(loop [args# (into [] (map (constantly nil) (first ~method)))
+          params# ~params]
+     (if-not (vector? args#)
+       args#
+       (if-let [arg# (first params#)]
+         (recur (try (assoc args# (.indexOf (first ~method) (first arg#)) (second arg#))
+                     (catch Exception _#
+                       (assoc (#'server-error (var-get #'invalid-params)) "id" ~id)))
+                (rest params#))
+         (assoc ((second ~method) args# (not (contains? ~call "id"))) "id" ~id)))))
+
+(defmacro positional-params
+  "Just passes the vector of arguments to the procedure as-is."
+  [call params id method]
+  `(if (nil? ~params)
+     (assoc ((second ~method) nil (not (contains? ~call "id"))) "id" ~id)
+     (if (= (count (first ~method)) (count ~params))
+       (assoc ((second ~method) ~params (not (contains? ~call "id"))) "id" ~id)
+       (assoc (#'server-error (var-get #'invalid-params)) "id" ~id))))
+
 (defn- execute-single
   "Takes the JSON input of a single procedure call, and returns a map containing
   the return JSON, if applicable (i.e. notifications do not return anything).
@@ -68,21 +92,35 @@
   [call]
   (when-valid call
     (if (map? params)
-      (loop [args (into [] (map (constantly nil) (first method)))
-             params params]
-        (if-not (vector? args)
-          args
-          (if-let [arg (first params)]
-            (recur (try (assoc args (.indexOf (first method) (first arg)) (second arg))
-                        (catch Exception _
-                          (assoc (server-error invalid-params) "id" id)))
-                   (rest params))
-            (assoc ((second method) args (not (contains? call "id"))) "id" id))))
-      (if (nil? params)
-        (assoc ((second method) nil (not (contains? call "id"))) "id" id)
-        (if (= (count (first method)) (count params))
-          (assoc ((second method) params (not (contains? call "id"))) "id" id)
-          (assoc (server-error invalid-params) "id" id))))))
+      (named-params call params id method)
+      (positional-params call params id method))))
+
+(defmacro do-batch
+  "Organises the execution of each entry in a batch, as well as the collation and
+  return of the outputs of each entry. Enforces not returning anything if the call
+  is a notification."
+  [input]
+  `(if (empty? ~input)
+     (assoc (#'server-error (var-get #'invalid-request)) "id" nil)
+     (loop [input# ~input return# []]
+       (if-let [current# (first input#)]
+         (recur (rest input#)
+                (let [result# (#'execute-single current#)]
+           (if (or (contains? current# "id") (= (get (get result# "error") "code") -32600))
+             (conj return# (#'execute-single current#))
+             return#)))
+       (json/write-str (vec (remove nil? return#)))))))
+
+(defmacro do-single
+  "Very simply executes a single procedure call. Enforces not returning anything
+  if the call is a notification."
+  [input]
+  `(if (contains? ~input "error")
+     (json/write-str ~input)
+     (let [result# (#'execute-single ~input)]
+       (if (or (contains? ~input "id") (= (get (get result# "error") "code") -32600))
+         (json/write-str (#'execute-single ~input))
+         ""))))
 
 (defn- execute
   "Handles request strings, dealing with batches etc. along the way."
@@ -91,22 +129,8 @@
                    (catch Exception _
                      (assoc (server-error parse-error) "id" nil)))]
     (if (vector? input)
-      (if (empty? input)
-        (assoc (server-error invalid-request) "id" nil)
-        (loop [input input return []]
-          (if-let [current (first input)]
-            (recur (rest input)
-                   (let [result (execute-single current)]
-                     (if (or (contains? current "id") (= (get (get result "error") "code") -32600))
-                       (conj return (execute-single current))
-                       return)))
-            (json/write-str (vec (remove nil? return))))))
-      (if (contains? input "error")
-        (json/write-str input)
-        (let [result (execute-single input)]
-          (if (or (contains? input "id") (= (get (get result "error") "code") -32600))
-            (json/write-str (execute-single input))
-            ""))))))
+      (do-batch input)
+      (do-single input))))
 
 ; From http://stackoverflow.com/a/12503724
 (defn- parse-int
