@@ -12,7 +12,7 @@
 (def- jrpc-namespace {})
 
 (def- parse-error '(-32700 "Parse error"))
-(def- invalid-request '(-32600 "Invalid request"))
+(def- invalid-request '(-32600 "Invalid Request"))
 (def- method-not-found '(-32601 "Method not found"))
 (def- invalid-params '(-32602 "Invalid params"))
 (def- internal-error '(-32603 "Internal error"))
@@ -52,16 +52,15 @@
   `(let [params# (get ~call "params")
          id# (get ~call "id")]
      (if (= (get ~call "jsonrpc") "2.0")
-       (if (string? method)
+       (if (string? (get ~call "method"))
          (if-let [method# (get (var-get #'jrpc-namespace) (get ~call "method"))]
-           (if (or (vector? params#) (map? params#) (= params# nil))
+           (if (or (vector? params#) (map? params#) (nil? params#))
              ((fn [~'params ~'id ~'method] ~body) params# id# method#)
              (assoc (#'server-error (var-get #'invalid-request)) "id" id#))
            (assoc (#'server-error (var-get #'method-not-found)) "id" id#))
          (assoc (#'server-error (var-get #'invalid-request)) "id" id#))
        (assoc (#'server-error (var-get #'invalid-request)) "id" id#))))
 
-; FIXME notification argument currently hardcoded to false
 (defn- execute-single
   "Takes the JSON input of a single procedure call, and returns a map containing
   the return JSON, if applicable (i.e. notifications do not return anything).
@@ -79,9 +78,11 @@
                           (assoc (server-error invalid-params) "id" id)))
                    (rest params))
             (assoc ((second method) args (not (contains? call "id"))) "id" id))))
-      (if (= (count (first method)) (count params))
-        (assoc ((second method) params (not (contains? call "id"))) "id" id)
-        (assoc (server-error invalid-params) "id" id)))))
+      (if (nil? params)
+        (assoc ((second method) nil (not (contains? call "id"))) "id" id)
+        (if (= (count (first method)) (count params))
+          (assoc ((second method) params (not (contains? call "id"))) "id" id)
+          (assoc (server-error invalid-params) "id" id))))))
 
 (defn- execute
   "Handles request strings, dealing with batches etc. along the way."
@@ -95,11 +96,17 @@
         (loop [input input return []]
           (if-let [current (first input)]
             (recur (rest input)
-                   (conj return (execute-single current)))
+                   (let [result (execute-single current)]
+                     (if (or (contains? current "id") (= (get (get result "error") "code") -32600))
+                       (conj return (execute-single current))
+                       return)))
             (json/write-str (vec (remove nil? return))))))
       (if (contains? input "error")
-        input
-        (json/write-str (execute-single input))))))
+        (json/write-str input)
+        (let [result (execute-single input)]
+          (if (or (contains? input "id") (= (get (get result "error") "code") -32600))
+            (json/write-str (execute-single input))
+            ""))))))
 
 ; From http://stackoverflow.com/a/12503724
 (defn- parse-int

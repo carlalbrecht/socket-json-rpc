@@ -28,7 +28,7 @@ example, the following procedure allows both unnamed and named argument usage.
 ```clojure
 (server/defprocedure subtract
   ["minuend" "subtrahend"]
-  (respond (- (first args) (second args))))
+  (server/respond (- (first args) (second args))))
 ```
 
 *Note:* The body automatically receives the variables `args` and `notification`.
