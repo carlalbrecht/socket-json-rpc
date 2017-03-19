@@ -40,7 +40,7 @@ the result of the procedure call. If the procedure does not respect the
 
 This method can be called with either of the following JSON:
 
-```json
+```javascript
 // Unnamed arguments
 {
   "jsonrpc": "2.0",
@@ -50,7 +50,7 @@ This method can be called with either of the following JSON:
 }
 ```
 
-```json
+```javascript
 // Named arguments
 {
   "jsonrpc": "2.0",
@@ -65,7 +65,7 @@ This method can be called with either of the following JSON:
 
 And both would return the same result:
 
-```json
+```javascript
 {
   "jsonrpc": "2.0",
   "result": "19",
