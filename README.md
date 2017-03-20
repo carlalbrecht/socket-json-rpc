@@ -1,5 +1,6 @@
 # socket-json-rpc
 
+[![Build Status](https://travis-ci.org/invlpg/socket-json-rpc.svg?branch=master)](https://travis-ci.org/invlpg/socket-json-rpc)
 [![codecov](https://codecov.io/gh/invlpg/socket-json-rpc/branch/master/graph/badge.svg)](https://codecov.io/gh/invlpg/socket-json-rpc)
 [![Dependencies Status](https://jarkeeper.com/invlpg/socket-json-rpc/status.svg)](https://jarkeeper.com/invlpg/socket-json-rpc)
 
