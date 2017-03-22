@@ -84,7 +84,8 @@
      (if (or (= (count (first ~method)) (count ~params))
              (and (= (last (first ~method)) "...")
                   (<= (count (first ~method)) (count ~params))))
-       (assoc ((second ~method) ~params (not (contains? ~call "id"))) "id" ~id)
+       ;(do (println ~params)
+       (assoc ((second ~method) ~params (not (contains? ~call "id"))) "id" ~id) ;)
        (assoc (#'server-error (var-get #'invalid-params)) "id" ~id))))
 
 (defn- execute-single

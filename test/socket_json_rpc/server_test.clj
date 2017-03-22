@@ -150,5 +150,40 @@
             {"jsonrpc" "2.0" "method" "notify_sum" "params" [1 2 4]}
             {"jsonrpc" "2.0" "method" "notify_hello" "params" [7]}
             ]))
-           "")))
-   )
+           ""))))
+
+
+; Tests the public-facing error function
+(deftest user-procedure-errors
+  (testing "less than reserved error code range"
+    (is (= (socket-json-rpc.server/error '(-32769 "The client should receive this message"))
+           (socket-json-rpc.server/error -32769 "The client should receive this message")
+           {"jsonrpc" "2.0" "error" {"code" -32769
+                                     "message" "The client should receive this message"}})))
+
+
+  (testing "inside reserved error code range - lower bounds"
+    (is (= (socket-json-rpc.server/error '(-32768 "This should error"))
+           (socket-json-rpc.server/error -32768 "This should error")
+           {"jsonrpc" "2.0" "error" {"code" -32000
+                                     "message" "Application attempted to use reserved error code"}})))
+
+
+  (testing "inside reserved error code range - upper bounds"
+    (is (= (socket-json-rpc.server/error '(-32000 "This should error"))
+           (socket-json-rpc.server/error -32000 "This should error")
+           {"jsonrpc" "2.0" "error" {"code" -32000
+                                     "message" "Application attempted to use reserved error code"}})))
+
+
+  (testing "less than reserved error code range"
+    (is (= (socket-json-rpc.server/error '(-31999 "The client should receive this message"))
+           (socket-json-rpc.server/error -31999 "The client should receive this message")
+           {"jsonrpc" "2.0" "error" {"code" -31999
+                                     "message" "The client should receive this message"}}))))
+
+
+; Tests the when-valid macro with various type and value mismatches
+;; (deftest when-valid-error-conditions
+;;   (testing "jsonrpc header validation"
+;;     (is (= ))))
