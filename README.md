@@ -119,7 +119,7 @@ specifies the host address that the server should listen on.
 First, require the client:
 
 ```clojure
-(require '[socket-json-rpc.client :as client])
+(require '[socket-json-rpc.client :as client :refer (notify)])
 ```
 
 The client is very simple, only exposing one macro - `with-server`, and is used
@@ -183,9 +183,9 @@ called on the server in-order.
   (doesntexist true))
   
 ; => [(false 19)
-      (false 15)
-      (false -19)
-      (true -32601 "Method not found")]
+;     (false 15)
+;     (false -19)
+;     (true -32601 "Method not found")]
 ```
 
 Notice that the return values arrive in the same order as the calls were
