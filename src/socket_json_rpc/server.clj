@@ -2,7 +2,8 @@
   (:require [clojure.string :as str]
             [clojure.data.json :as json]
             [clojure.core.async :as async]
-            [com.gearswithingears.async-sockets :refer :all]))
+            [com.gearswithingears.async-sockets :refer :all])
+  (:import [java.net InetAddress]))
 
 (defmacro def-
   "Define a new private variable in 'defn-' style."
@@ -16,6 +17,8 @@
 (def- method-not-found '(-32601 "Method not found"))
 (def- invalid-params '(-32602 "Invalid params"))
 (def- internal-error '(-32603 "Internal error"))
+
+(def- zero-string "\n")
 
 (defn error
   "Generates the return JSON for an error condition."
@@ -157,7 +160,10 @@
           (if (< (count request) length)
             (recur length (str request "\n"))
             (let [result (execute request)]
-              (async/>! (:out socket) (str (count result) "\n" result)))))))))
+              (let [count (count result)]
+                (if (zero? count)
+                  (async/>! (:out socket) zero-string)
+                  (async/>! (:out socket) (str count "\n" result)))))))))))
 
 (defmacro defprocedure
   "Creates a new procedure that can be called through the JSON-RPC interface.
@@ -183,17 +189,21 @@
   optional bind address (localhost by default), and returns immediately with a
   communications channel that can be used to command the server to shut down."
   ([port]
-    (start-async port default-server-backlog nil))
+    (start-async port default-server-backlog))
   ([port backlog]
     (start-async port backlog nil))
   ([port backlog bind-addr]
-    (let [server (socket-server port backlog bind-addr)]
+    (let [server (socket-server port backlog (InetAddress/getByName bind-addr))]
       (.addShutdownHook (Runtime/getRuntime)
                         (new Thread (fn [] (stop-socket-server server))))
-      (async/go-loop []
-        (when-let [connection (async/<! (:connections server))]
-          (socket-io connection)
-          (recur))))))
+      (let [shutdown (promise)]
+        (list
+         (async/go-loop []
+           (when-let [connection (async/<! (:connections server))]
+             (socket-io connection)
+             (when-not (realized? shutdown)
+               (recur))))
+         shutdown)))))
 
 (defn start
   "Creates a new asynchronous socket server with a given port, optional backlog
@@ -202,11 +212,11 @@
   the process. Use this server instead of the async server to prevent the main
   thread from exiting."
   ([port]
-    (start port default-server-backlog nil))
+    (start port default-server-backlog))
   ([port backlog]
     (start port backlog nil))
   ([port backlog bind-addr]
-    (let [channel (start-async port backlog bind-addr)]
+    (let [server (start-async port backlog bind-addr)]
       (loop []
-        (when (async/<!! channel)
+        (when (async/<!! (first server))
           (recur))))))
