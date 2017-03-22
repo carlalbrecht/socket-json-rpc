@@ -55,7 +55,7 @@ variable arguments, the special named argument `"..."` can be used. For example:
 The client must still provide at least the number of named arguments other than
 `"..."`. In the previous example, at least one number would have to be specified.
 
-This method can be called with either of the following JSON:
+The `subtract` method can be called with either of the following JSON:
 
 ```javascript
 // Unnamed arguments
@@ -113,6 +113,83 @@ The server can then be started in one of two ways:
 The only required argument to either form is `port`. `backlog` specifies how many
 pending connections should be buffered, and is 50 by default. `bind-addr`
 specifies the host address that the server should listen on.
+
+## Client Usage
+
+First, require the client:
+
+```clojure
+(require '[socket-json-rpc.client :as client])
+```
+
+The client is very simple, only exposing one macro - `with-server`, and is used
+in the form
+
+```clojure
+(client/with-server [host] [port] [body])
+```
+
+This form allows the client to call functions on the server *almost* as if they
+were local functions. For example, our `subtract` procedure defined above could
+be called on a local server running on port `9001` by either:
+
+Using the ordered argument form:
+
+```clojure
+(client/with-server "localhost" 9001
+  (subtract 42 23))
+```
+
+Or, using the named argument form:
+
+```clojure
+(client/with-server "localhost" 9001
+  (subtract :subtrahend 23 :minuend 42))
+```
+
+Both forms would return the same result:
+
+```clojure
+[(false 19)]
+```
+
+`with-server` returns a vector of function results. Each item in the vector is a
+list containing
+
+```clojure
+'([error] 
+   [result] || [code] [message])
+  
+; i.e. successful function call
+'(false 19)
+
+; i.e. error condition
+'(true -32601 "Method not found")
+```
+
+A remote procedure call can be wrapped in `notify` if you aren't interested in
+receiving a reply with the result of the function call.
+
+Multiple functions can be grouped together into a single "batch" by calling them
+successively inside the `with-server` block. Note that each function will be
+called on the server in-order.
+
+```clojure
+(client/with-server "localhost" 9001
+  (subtract 42 23)
+  (add 1 2 3 4 5)
+  (subtract :subtrahend 42 :minuend 23)
+  (notify (add 15 15))
+  (doesntexist true))
+  
+; => [(false 19)
+      (false 15)
+      (false -19)
+      (true -32601 "Method not found")]
+```
+
+Notice that the return values arrive in the same order as the calls were
+delivered. 
 
 ## Common Problems
 
