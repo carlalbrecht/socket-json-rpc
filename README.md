@@ -119,7 +119,7 @@ specifies the host address that the server should listen on.
 First, require the client:
 
 ```clojure
-(require '[socket-json-rpc.client :as client])
+(require '[socket-json-rpc.client :as client :refer (notify)])
 ```
 
 The client is very simple, only exposing one macro - `with-server`, and is used
