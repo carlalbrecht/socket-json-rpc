@@ -182,10 +182,10 @@ called on the server in-order.
   (notify (add 15 15))
   (doesntexist true))
   
-;=> [(false 19)
-     (false 15)
-     (false -19)
-     (true -32601 "Method not found")]
+; => [(false 19)
+;     (false 15)
+;     (false -19)
+;     (true -32601 "Method not found")]
 ```
 
 Notice that the return values arrive in the same order as the calls were
