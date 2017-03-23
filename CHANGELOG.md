@@ -31,4 +31,4 @@ All notable changes to this project will be documented in this file. This change
   form to JSON-RPC form, checking for validity
 - README with basic API documentation
 
-[Unreleased]: https://github.com/invlpg/socket-json-rpc/compare/1.0.0...HEAD
+[Unreleased]: https://github.com/invlpg/socket-json-rpc/compare/v1.0.0...HEAD
