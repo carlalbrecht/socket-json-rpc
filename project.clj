@@ -1,4 +1,4 @@
-(defproject socket-json-rpc "1.0.0"
+(defproject invlpg/socket-json-rpc "1.0.0"
   :description "An asynchronous JSON-RPC client and server for Clojure that uses sockets for communication"
   :url "https://github.com/invlpg/socket-json-rpc"
   :license {:name "Eclipse Public License"
